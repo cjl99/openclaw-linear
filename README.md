@@ -1,5 +1,7 @@
 # OpenClaw Linear Agents
 
+English | [简体中文](README.zh-CN.md)
+
 Connect Linear Agent Sessions to an OpenClaw Gateway. The plugin receives authorized Linear events, runs the configured OpenClaw agent, streams user-visible progress back to Linear, and preserves follow-up context in a stable session.
 
 This repository targets **OpenClaw 2026.9.1**, **Node.js 24**, and Linear's Agent Session APIs. It is an OpenClaw Gateway plugin, not a Codex Desktop plugin or a replacement for Linear's built-in agent UI.
@@ -80,13 +82,14 @@ Example plugin config:
   "organizationUrlKey": "example-workspace",
   "teamIds": ["00000000-0000-4000-8000-000000000001"],
   "autoAssignUserIds": [],
+  "locale": "en",
   "publicOrigin": "https://gateway.example.com",
   "stateDir": "/absolute/private/path/linear-state",
   "credentialsFile": "/absolute/private/path/linear-agent.json"
 }
 ```
 
-`organizationId` may be used instead of `organizationUrlKey`; if both are set, both must match. `autoAssignUserIds` defaults to an empty array, which disables assignee-based delegation.
+`organizationId` may be used instead of `organizationUrlKey`; if both are set, both must match. `autoAssignUserIds` defaults to an empty array, which disables assignee-based delegation. `locale` controls plugin-generated Linear activities and OAuth pages; it defaults to `en` and also accepts `zh-CN`.
 
 Add the checkout to the existing OpenClaw plugin configuration without replacing unrelated entries:
 
@@ -103,6 +106,7 @@ Add the checkout to the existing OpenClaw plugin configuration without replacing
           "organizationUrlKey": "example-workspace",
           "teamIds": ["00000000-0000-4000-8000-000000000001"],
           "autoAssignUserIds": [],
+          "locale": "en",
           "publicOrigin": "https://gateway.example.com",
           "stateDir": "/absolute/private/path/linear-state",
           "credentialsFile": "/absolute/private/path/linear-agent.json"
@@ -173,6 +177,8 @@ Cold-restart the Gateway after rebuilding; an in-process configuration reload ma
 - Linear controls activity layout and its native `Worked for` duration; the plugin cannot reproduce every OpenClaw UI detail.
 
 See [agent capabilities](docs/agent-capabilities.md) and [context behavior](docs/context.md) for implementation details.
+
+Public documentation is maintained in English and Simplified Chinese. When adding or changing documentation, update both language files in the same change.
 
 ## License
 

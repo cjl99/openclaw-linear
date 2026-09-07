@@ -161,7 +161,7 @@ test("progress forwards details with redaction, ignores unrelated runs and dedup
   expect(actions).toHaveLength(2);
   expect(JSON.stringify(content.mock.calls)).not.toContain("secret-value");
   expect(JSON.stringify(content.mock.calls)).toContain("private output");
-  expect((actions[1] as any)[2].result).toContain("执行完成");
+  expect((actions[1] as any)[2].result).toContain("Completed");
   expect(
     toolActivity({
       phase: "start",
@@ -240,9 +240,9 @@ test("commentary is ordered once before tools, final candidates and reasoning st
   expect(calls[0]).toEqual({ type: "thought", body: "我先检查当前目录。" });
   expect(calls[2]).toMatchObject({ type: "action", parameter: "pwd" });
   expect(calls[2].result).toContain('"cwd": "/test"');
-  expect(calls[2].result).toContain("输出");
+  expect(calls[2].result).toContain("Output");
   expect(JSON.stringify(calls)).not.toMatch(/隐藏|我先"/);
-  expect(calls.at(-1).body).toContain("调用了 1 个工具");
+  expect(calls.at(-1).body).toContain("1 tool calls");
 });
 test("progress failure does not suppress subsequent events or final summary", async () => {
   const calls: any[] = [];
@@ -272,7 +272,7 @@ test("progress failure does not suppress subsequent events or final summary", as
   await p.finish("run", false);
   expect(calls[0].result).toContain("OK");
   expect(JSON.stringify(calls)).not.toMatch(/private-key|do-not-expose/);
-  expect(calls.at(-1).body).toContain("部分过程未能同步");
+  expect(calls.at(-1).body).toContain("Some progress could not be synced");
 });
 test("native output comes from exact run and tool identity, never a stale result", async () => {
   const content = vi.fn(async () => {});

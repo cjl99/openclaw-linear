@@ -1,11 +1,13 @@
-# 简单上下文
+# Minimal context
 
-- 首轮：直接使用 Linear promptContext。
-- 追问：直接传本条消息，复用原生会话历史。不重复注入上轮模型回答或本条评论。
-- Guidance：补充独立字段中尚未包含在消息里的指导；成功传递后仅变化时再补充。
-- 不自动扫描 Issue / 评论，不维护额外工作记录或来源账本，不发送“本轮上下文” Activity。
-- 需要最新描述、其他评论或项目背景时，由 Agent 使用已有 Linear 工具按需读取；未读内容不能声称已知。没有新增工具。
+English | [简体中文](context.zh-CN.md)
 
-仅两个异常兜底：输入超过 18,000 字符时显示前 12,000 字符并提供私有完整文本路径，明确要求执行前读完整原文（不是摘要）；宿主历史丢失时从不可变 Agent Activities 恢复，保留 100 页 / 100,000 字符安全上限。HTTP 包体仍限制 1 MiB。
+- First turn: pass Linear's `promptContext` directly.
+- Follow-ups: pass only the new message and reuse native session history. Do not inject the previous model answer or the current comment again.
+- Guidance: add guidance from its separate field only when it is not already present in the message; after successful delivery, include it again only when it changes.
+- Do not automatically scan the issue or comments, maintain a parallel work log or source ledger, or emit a context-report activity.
+- When current descriptions, other comments, or project context are needed, the agent should read them on demand through its existing Linear tools. Unread content must not be claimed as known. This plugin adds no such tools.
 
-旧版已注入的历史消息和私有缓存不删除，但不再追加或使用旧上下文账本。新消息不代表自动刷新整个 Issue。需要无旧包装的体验，请创建新的 Agent Session。
+There are two bounded fallbacks. Inputs longer than 18,000 characters show the first 12,000 characters and provide a private path to the complete original, with an explicit instruction to read that original before acting; this is not a summary. When host history is missing, the plugin recovers context from immutable Agent Activities, limited to 100 pages and 100,000 characters. HTTP request bodies remain limited to 1 MiB.
+
+Historical messages and private caches created by older releases are not deleted, but the old context ledger is no longer read or extended. A new message does not imply a full issue refresh. Start a new Agent Session when a conversation should have no legacy wrapping.

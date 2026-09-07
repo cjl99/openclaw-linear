@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Store, type Event } from "./store.js";
 import { redact } from "./progress.js";
+import { presentation, type Locale } from "./presentation.js";
 export interface AgentRunner {
   (
     e: Event,
@@ -31,6 +32,7 @@ export class Worker {
     private run: AgentRunner,
     private log: (message: string) => void,
     private cancelStored?: (e: Event) => Promise<void>,
+    private locale: Locale = "en",
   ) {}
   start() {
     this.store.recover();
@@ -67,7 +69,7 @@ export class Worker {
       e.sessionId,
       id,
       "thought",
-      "已收到请求，准备开始。",
+      presentation(this.locale).received,
     );
   }
   /** Caller has authenticated the webhook and verified session ownership. */
@@ -117,11 +119,12 @@ export class Worker {
       if (e.action === "stop") {
         await this.cancelStored?.(e);
         const blocked = this.store.get(`blocked:${e.sessionId}`);
+        const p = presentation(this.locale);
         this.store.output(
           j.id,
           blocked
-            ? "尚未确认执行已停止；已阻止此 Session 启动新任务，请稍后重试停止。"
-            : "已停止此 Session 的执行，并取消已排队的请求。",
+            ? p.stopUnconfirmed
+            : p.stopped,
           blocked ? "error" : "response",
         );
         return;
@@ -131,7 +134,7 @@ export class Worker {
         if (this.store.get(`blocked:${e.sessionId}`)) {
           this.store.output(
             j.id,
-            "尚未确认执行已停止；已阻止此 Session 启动新任务，请稍后重试。",
+            presentation(this.locale).blocked,
             "error",
           );
           return;
@@ -160,11 +163,11 @@ export class Worker {
           j.runId,
           this.controller.signal,
         );
-        this.store.output(j.id, output || "本次运行未返回可见结果。");
+        this.store.output(j.id, output || presentation(this.locale).noResult);
       } catch {
         this.store.output(
           j.id,
-          "本次执行失败或被中断，请查看 session🔗 后决定是否重试。",
+          presentation(this.locale).failed,
           "error",
         );
       } finally {

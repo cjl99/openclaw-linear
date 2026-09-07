@@ -228,7 +228,7 @@ test("stop bypasses running work and cancels old queued prompts, not subsequent 
       "session",
       expect.any(String),
       "response",
-      expect.stringContaining("已停止"),
+      expect.stringContaining("was stopped"),
     );
     run.mockResolvedValue("continued");
     await w.tick();

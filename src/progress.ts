@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { Linear } from "./linear.js";
 import type { Event } from "./store.js";
+import { presentation, type Locale } from "./presentation.js";
 
 // Forward user-visible execution events, never reasoning or hidden answer candidates.
 export function redact(value: unknown, depth = 0): unknown {
-  if (depth > 12) return "[嵌套内容省略]";
+  if (depth > 12) return "[Nested content omitted]";
   if (typeof value === "string")
     return value
       .replace(
@@ -41,13 +42,12 @@ function text(value: unknown): string {
     ? safe
     : (JSON.stringify(safe, null, 2) ?? "");
 }
-function bounded(value: string, limit: number) {
+function bounded(value: string, limit: number, locale: Locale = "en") {
   return value.length <= limit
     ? value
-    : value.slice(0, limit) +
-        "\n… 内容较长，余下内容请打开 session🔗。";
+    : value.slice(0, limit) + presentation(locale).longContent;
 }
-function resultText(value: unknown): string {
+function resultText(value: unknown, locale: Locale): string {
   if (
     value &&
     typeof value === "object" &&
@@ -59,7 +59,7 @@ function resultText(value: unknown): string {
         .map((part: any) =>
           part.type === "text" || part.type === "toolResult"
             ? text(part.text)
-            : `[${part.type ?? "附件"}：请在完整会话中查看]`,
+            : presentation(locale).attachment(String(part.type ?? "attachment")),
         )
         .join("\n") + (result.details ? "\n" + text(result.details) : "")
     );
@@ -69,7 +69,9 @@ function resultText(value: unknown): string {
 export function toolActivity(
   data: Record<string, unknown>,
   elapsedMs?: number,
+  locale: Locale = "en",
 ) {
+  const p = presentation(locale);
   if (
     data.hideFromChannelProgress === true ||
     !["start", "result"].includes(String(data.phase))
@@ -78,7 +80,7 @@ export function toolActivity(
   const name =
     typeof data.name === "string" && /^[a-zA-Z0-9_.:/-]{1,160}$/.test(data.name)
       ? data.name
-      : "工具";
+      : p.tool;
   const args = data.args as Record<string, unknown> | undefined;
   const label =
     args && typeof args === "object"
@@ -90,17 +92,21 @@ export function toolActivity(
         args.q ??
         data.meta)
       : (data.args ?? data.meta);
-  const parameter = bounded(text(label || name).replace(/\s+/g, " "), 240);
+  const parameter = bounded(
+    text(label || name).replace(/\s+/g, " "),
+    240,
+    locale,
+  );
   const content: Record<string, unknown> = {
     type: "action",
     action: name,
     parameter,
   };
   if (data.phase === "result") {
-    const status = `${data.isError === true ? "执行失败" : "执行完成"}${elapsedMs === undefined ? "" : ` · ${Math.max(1, Math.round(elapsedMs / 1000))} 秒`}`;
-    const input = bounded(text(data.args), 6000);
-    const output = bounded(resultText(data.result), 16000);
-    content.result = `${status}${input ? `\n\n参数\n${input}` : ""}\n\n输出\n${output ? output : "工具未返回可见文本。"}`;
+    const status = `${data.isError === true ? p.toolFailed : p.toolCompleted}${elapsedMs === undefined ? "" : ` · ${Math.max(1, Math.round(elapsedMs / 1000))} ${p.seconds}`}`;
+    const input = bounded(text(data.args), 6000, locale);
+    const output = bounded(resultText(data.result, locale), 16000, locale);
+    content.result = `${status}${input ? `\n\n${p.input}\n${input}` : ""}\n\n${p.output}\n${output ? output : p.noToolOutput}`;
   }
   return content;
 }
@@ -138,6 +144,7 @@ export class Progress {
     private linear: Linear,
     private log: (s: string) => void,
     private readMessages?: (sessionKey: string) => Promise<unknown[]>,
+    private locale: Locale = "en",
   ) {}
   start() {
     this.timer = setInterval(() => {
@@ -147,7 +154,10 @@ export class Progress {
             r,
             {
               type: "thought",
-              body: `正在处理 · 已运行 ${Math.round((Date.now() - r.started) / 1000)} 秒${r.calls ? ` · 已调用 ${r.calls} 个工具` : ""}`,
+              body: presentation(this.locale).processing(
+                Math.round((Date.now() - r.started) / 1000),
+                r.calls,
+              ),
             },
             true,
           );
@@ -225,7 +235,7 @@ export class Progress {
         item.sent = true;
         this.send(r, {
           type: "thought",
-          body: bounded(text(item.text), 12000),
+          body: bounded(text(item.text), 12000, this.locale),
         });
       }
   }
@@ -270,6 +280,7 @@ export class Progress {
     const content = toolActivity(
       data,
       prior ? Date.now() - prior.started : undefined,
+      this.locale,
     );
     if (!content) return;
     if (e.data.phase === "start" && !prior) {
@@ -293,10 +304,10 @@ export class Progress {
         const projected = toolActivity(
           { ...data, ...(matched ? { result: matched } : {}) },
           elapsed,
+          this.locale,
         )!;
         if (!matched)
-          projected.result +=
-            "\n\n完整输出尚未同步，请打开 session🔗。";
+          projected.result += presentation(this.locale).outputUnavailable;
         if (r.muted) return;
         await this.linear.content(
           r.event.sessionId,
@@ -319,7 +330,12 @@ export class Progress {
       r,
       {
         type: "thought",
-        body: `${ok ? "本轮执行完成" : "本轮执行结束"} · 用时 ${elapsed} 秒 · 调用了 ${r.calls} 个工具${r.omitted ? "\n部分过程未能同步，请打开 session🔗。" : ""}`,
+        body: presentation(this.locale).finished(
+          ok,
+          elapsed,
+          r.calls,
+          r.omitted > 0,
+        ),
       },
       false,
       true,

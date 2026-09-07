@@ -1,5 +1,6 @@
 import { isAbsolute } from "node:path";
 import { readFileSync, statSync } from "node:fs";
+import type { Locale } from "./presentation.js";
 export interface Config {
   agentId: string;
   organizationId?: string;
@@ -9,6 +10,7 @@ export interface Config {
   stateDir: string;
   credentialsFile: string;
   autoAssignUserIds?: string[];
+  locale?: Locale;
 }
 export interface Secrets {
   clientId: string;
@@ -36,10 +38,12 @@ export function config(value: unknown): Config {
       ))
   )
     throw Error("autoAssignUserIds must contain Linear user UUIDs");
+  if (c.locale !== undefined && !["en", "zh-CN"].includes(c.locale))
+    throw Error('locale must be "en" or "zh-CN"');
   const u = new URL(c.publicOrigin);
   if (u.protocol !== "https:" || u.origin !== c.publicOrigin)
     throw Error("publicOrigin must be an HTTPS origin");
-  return c;
+  return { ...c, locale: c.locale ?? "en" };
 }
 export function secrets(c: Config): Secrets {
   if (statSync(c.credentialsFile).mode & 0o077)

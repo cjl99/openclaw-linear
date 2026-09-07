@@ -33,7 +33,12 @@
       },
       "publicOrigin": { "type": "string" },
       "stateDir": { "type": "string" },
-      "credentialsFile": { "type": "string" }
+      "credentialsFile": { "type": "string" },
+      "locale": {
+        "type": "string",
+        "enum": ["en", "zh-CN"],
+        "default": "en"
+      }
     }
   }
 }

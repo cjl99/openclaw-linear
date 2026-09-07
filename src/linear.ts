@@ -1,5 +1,6 @@
 import type { Config, Secrets } from "./config.js";
 import { Store, type Event } from "./store.js";
+import { presentation } from "./presentation.js";
 export interface Token {
   accessToken: string;
   refreshToken: string;
@@ -133,7 +134,11 @@ export class Linear {
       "mutation($id:String!,$input:AgentSessionUpdateInput!){agentSessionUpdate(id:$id,input:$input){success}}",
       {
         id: sessionId,
-        input: { addedExternalUrls: [{ label: "session🔗", url }] },
+        input: {
+          addedExternalUrls: [
+            { label: presentation(this.c.locale).linkLabel, url },
+          ],
+        },
       },
       undefined,
       2000,

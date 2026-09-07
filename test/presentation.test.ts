@@ -2,7 +2,7 @@ import { test, expect, vi } from "vitest";
 import { Linear } from "../src/linear.js";
 import { toolActivity, redact, Progress } from "../src/progress.js";
 
-test("session link uses the neutral label and preserves the URL", async () => {
+test("session link defaults to English and preserves the URL", async () => {
   const linear = new Linear({} as any, {} as any, {} as any);
   const query = vi
     .spyOn(linear, "query")
@@ -13,7 +13,7 @@ test("session link uses the neutral label and preserves the URL", async () => {
     input: {
       addedExternalUrls: [
         {
-          label: "session🔗",
+          label: "OpenClaw session",
           url: "https://gateway.example.com/chat/agent/test",
         },
       ],
@@ -39,7 +39,7 @@ test.each([
   expect(content?.result).toContain(path);
 });
 
-test("business output remains visible and truncation uses session label", () => {
+test("business output remains visible and truncation uses neutral English copy", () => {
   const result = toolActivity({
     phase: "result",
     name: "linear.get_issue",
@@ -47,11 +47,25 @@ test("business output remains visible and truncation uses session label", () => 
     result: "x".repeat(17000),
   });
   expect(result?.parameter).toBe("YOU-25258");
-  expect(result?.result).toContain("session🔗");
-  expect(JSON.stringify(result)).not.toContain("OpenClaw");
+  expect(result?.result).toContain("Open the full session");
   expect(redact("OpenClaw /srv/openclaw/private/example.txt")).toBe(
     "OpenClaw /srv/openclaw/private/example.txt",
   );
+});
+
+test("Simplified Chinese presentation is opt-in", async () => {
+  const linear = new Linear({ locale: "zh-CN" } as any, {} as any, {} as any);
+  const query = vi
+    .spyOn(linear, "query")
+    .mockResolvedValue({ agentSessionUpdate: { success: true } });
+  await linear.link("session", "https://gateway.example.com/chat");
+  expect((query.mock.calls[0][1] as any).input.addedExternalUrls[0].label).toBe(
+    "OpenClaw 会话",
+  );
+  expect(
+    toolActivity({ phase: "result", name: "read", result: "ok" }, 1000, "zh-CN")
+      ?.result,
+  ).toContain("执行完成");
 });
 
 test("transcript fallback preserves real tool parameters and output", async () => {
