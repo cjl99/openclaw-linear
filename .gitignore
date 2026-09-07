@@ -1,0 +1,12 @@
+node_modules
+dist/
+.state/
+*.sqlite*
+*.tgz
+credentials*.json
+.env
+.env.*
+!.env.example
+*.local.json
+.DS_Store
+coverage/

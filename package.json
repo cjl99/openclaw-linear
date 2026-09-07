@@ -1,0 +1,52 @@
+{
+  "name": "@cjl99/openclaw-linear",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Linear Agent Sessions integration for OpenClaw Gateway",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cjl99/openclaw-linear.git"
+  },
+  "homepage": "https://github.com/cjl99/openclaw-linear#readme",
+  "bugs": {
+    "url": "https://github.com/cjl99/openclaw-linear/issues"
+  },
+  "keywords": [
+    "openclaw",
+    "linear",
+    "agent",
+    "webhook",
+    "oauth"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ]
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "peerDependencies": {
+    "openclaw": "2026.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.18",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "authorize": "node dist/authorize.js"
+  }
+}

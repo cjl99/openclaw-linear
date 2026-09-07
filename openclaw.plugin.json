@@ -1,0 +1,39 @@
+{
+  "id": "linear-agents",
+  "name": "Linear Agents",
+  "activation": { "onStartup": true },
+  "description": "Linear Agent Sessions through the configured OpenClaw harness",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "agentId",
+      "teamIds",
+      "publicOrigin",
+      "stateDir",
+      "credentialsFile"
+    ],
+    "anyOf": [
+      { "required": ["organizationId"] },
+      { "required": ["organizationUrlKey"] }
+    ],
+    "properties": {
+      "agentId": { "type": "string", "minLength": 1 },
+      "organizationId": { "type": "string", "minLength": 1 },
+      "organizationUrlKey": { "type": "string", "minLength": 1 },
+      "autoAssignUserIds": {
+        "type": "array",
+        "default": [],
+        "items": { "type": "string", "format": "uuid" }
+      },
+      "teamIds": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "string", "minLength": 1 }
+      },
+      "publicOrigin": { "type": "string" },
+      "stateDir": { "type": "string" },
+      "credentialsFile": { "type": "string" }
+    }
+  }
+}
