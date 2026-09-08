@@ -186,6 +186,17 @@ test("a confirmed abort is not lost when terminal history is unavailable", async
   expect(await cancelRun(request, wait, "key", "run")).toBe(true);
   expect(wait).not.toHaveBeenCalled();
 });
+test("a lost abort response is reconciled from terminal run state", async () => {
+  const request = vi.fn().mockRejectedValue(Error("response lost"));
+  const wait = vi.fn().mockResolvedValue({ status: "ok", endedAt: Date.now() });
+  expect(await cancelRun(request, wait, "key", "run")).toBe(true);
+  expect(wait).toHaveBeenCalledWith({ runId: "run", timeoutMs: 10000 });
+});
+test("an abort RPC failure remains unconfirmed while the run is nonterminal", async () => {
+  const request = vi.fn().mockRejectedValue(Error("request rejected"));
+  const wait = vi.fn().mockResolvedValue({ status: "timeout" });
+  expect(await cancelRun(request, wait, "key", "run")).toBe(false);
+});
 test("already-terminal run is confirmed even when abort races completion", async () => {
   expect(
     await cancelRun(

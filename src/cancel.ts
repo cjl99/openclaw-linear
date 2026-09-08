@@ -20,7 +20,9 @@ export async function cancelRun(
       { timeoutMs: 10000 },
     )) as typeof response;
   } catch {
-    return false;
+    // The RPC response can be lost while the abort itself still succeeds. Do
+    // not turn that transport uncertainty into a permanent session block;
+    // reconcile against the durable run lifecycle below.
   }
   // The Gateway's exact-run response is authoritative. An empty run list means
   // the old run is no longer active; a matching run means it was just aborted.
