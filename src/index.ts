@@ -2,6 +2,7 @@ import {
   definePluginEntry,
   type OpenClawPluginApi,
 } from "openclaw/plugin-sdk/plugin-entry";
+import { callGatewayTool } from "openclaw/plugin-sdk/agent-harness-runtime";
 import { createHash } from "node:crypto";
 import { config, secrets } from "./config.js";
 import { Store } from "./store.js";
@@ -18,6 +19,19 @@ import { preparePrompt, recoverPrompt } from "./context.js";
 import { presentation } from "./presentation.js";
 export function register(api: OpenClawPluginApi) {
   const c = config(api.pluginConfig);
+  const requestGateway = async (
+    method: string,
+    params: Record<string, unknown>,
+    options: { timeoutMs: number },
+  ) => {
+    try {
+      return await api.runtime.gateway.request(method, params, options);
+    } catch {
+      // Arbitrary external plugins cannot use the trusted in-process Gateway
+      // dispatcher. Fall back to the SDK's least-privilege Gateway client.
+      return callGatewayTool(method, { timeoutMs: options.timeoutMs }, params);
+    }
+  };
   let store: Store | undefined;
   let linear: Linear | undefined;
   let worker: Worker | undefined;
@@ -59,7 +73,7 @@ export function register(api: OpenClawPluginApi) {
         .all()) {
         const binding = JSON.parse(row.value as string);
         const confirmed = await cancelRun(
-          (m, p, o) => api.runtime.gateway.request(m, p, o),
+          requestGateway,
           (p) => api.runtime.subagent.waitForRun(p),
           binding.sessionKey,
           binding.runId,
@@ -117,7 +131,7 @@ export function register(api: OpenClawPluginApi) {
             store!.set(`blocked:${e.sessionId}`, true);
             if (acceptedRun)
               cancellation ??= cancelRun(
-                (m, p, o) => api.runtime.gateway.request(m, p, o),
+                requestGateway,
                 (p) => api.runtime.subagent.waitForRun(p),
                 sessionKey,
                 activeRunId,
@@ -223,7 +237,7 @@ export function register(api: OpenClawPluginApi) {
           );
           if (!binding) return;
           const confirmed = await cancelRun(
-            (m, p, o) => api.runtime.gateway.request(m, p, o),
+            requestGateway,
             (p) => api.runtime.subagent.waitForRun(p),
             binding.sessionKey,
             binding.runId,
