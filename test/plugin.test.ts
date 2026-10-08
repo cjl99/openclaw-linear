@@ -51,6 +51,7 @@ test("Gateway route rejects unsigned requests and dispatches signed session thro
     },
     registerHttpRoute: (r: any) => routes.push(r),
     runtime: {
+      gateway: { request: vi.fn(async () => ({})) },
       config: { current: () => cfg },
       subagent: {
         run,

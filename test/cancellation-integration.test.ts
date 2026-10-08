@@ -49,7 +49,8 @@ test.each(["running", "acceptance"])(
             resolveWait = resolve;
           }),
     );
-    const request = vi.fn(async () => {
+    const request = vi.fn(async (method: string) => {
+      if (method === "health") return {};
       ended = true;
       resolveWait?.(terminal());
       return { aborted: true, runIds: ["host-run"] };
@@ -82,6 +83,10 @@ test.each(["running", "acceptance"])(
     try {
       register(api);
       await service.start();
+      await vi.waitFor(() =>
+        expect(request).toHaveBeenCalledWith("health", {}, { timeoutMs: 1000 }),
+      );
+      request.mockClear();
       inspection = new Store(join(dir, "state"));
       const route = routes.find((r) => r.path === "/linear/webhook");
       async function send(stop: boolean) {

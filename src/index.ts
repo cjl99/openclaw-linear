@@ -17,19 +17,25 @@ import { cancelRun } from "./cancel.js";
 import { controls, RejectedControl } from "./controls.js";
 import { preparePrompt, recoverPrompt } from "./context.js";
 import { presentation } from "./presentation.js";
+import { StartupRecovery, abortable } from "./recovery.js";
 export function register(api: OpenClawPluginApi) {
   const c = config(api.pluginConfig);
   const requestGateway = async (
     method: string,
     params: Record<string, unknown>,
-    options: { timeoutMs: number },
+    options: { timeoutMs: number; signal?: AbortSignal },
   ) => {
     try {
-      return await api.runtime.gateway.request(method, params, options);
+      const request = api.runtime.gateway.request(method, params, {
+        timeoutMs: options.timeoutMs,
+      });
+      return options.signal ? await abortable(request, options.signal) : await request;
     } catch {
       // Arbitrary external plugins cannot use the trusted in-process Gateway
       // dispatcher. Fall back to the SDK's least-privilege Gateway client.
-      return callGatewayTool(method, { timeoutMs: options.timeoutMs }, params);
+      options.signal?.throwIfAborted();
+      return callGatewayTool(method, { timeoutMs: options.timeoutMs }, params,
+        options.signal ? { signal: options.signal } : undefined);
     }
   };
   let store: Store | undefined;
@@ -37,6 +43,7 @@ export function register(api: OpenClawPluginApi) {
   let worker: Worker | undefined;
   let assignments: Assignments | undefined;
   let progress: Progress | undefined;
+  let recovery: StartupRecovery | undefined;
   const receipts = new Set<Promise<void>>();
   api.registerAgentEventSubscription({
     id: "linear-tool-progress",
@@ -68,19 +75,6 @@ export function register(api: OpenClawPluginApi) {
         });
       }
       store.recover();
-      for (const row of store.db
-        .prepare("SELECT key,value FROM kv WHERE key LIKE 'active:%'")
-        .all()) {
-        const binding = JSON.parse(row.value as string);
-        const confirmed = await cancelRun(
-          requestGateway,
-          (p) => api.runtime.subagent.waitForRun(p),
-          binding.sessionKey,
-          binding.runId,
-        );
-        store.set(`blocked:${binding.event.sessionId}`, !confirmed);
-        if (confirmed) store.take(row.key as string);
-      }
       assignments = new Assignments(c, store, linear, (m) =>
         api.logger.warn(m),
       );
@@ -247,9 +241,29 @@ export function register(api: OpenClawPluginApi) {
         },
         c.locale,
       );
-      worker.start();
+      recovery = new StartupRecovery(
+        store,
+        async (signal) => {
+          await requestGateway("health", {}, { timeoutMs: 1000, signal });
+        },
+        async (binding, signal) => cancelRun(
+          (method, params, options) => requestGateway(method, params, {
+            ...options,
+            signal,
+          }),
+          (p) => abortable(api.runtime.subagent.waitForRun(p), signal),
+          binding.sessionKey,
+          binding.runId,
+          { signal, timeoutMs: 2000 },
+        ),
+        () => worker!.start(),
+        (message) => api.logger.warn(message),
+      );
+      recovery.start();
     },
     async stop() {
+      await recovery?.stop();
+      recovery = undefined;
       await worker?.stop();
       await assignments?.stop();
       await progress?.stop();
