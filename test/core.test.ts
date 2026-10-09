@@ -121,6 +121,96 @@ test("team/session authorization denial cannot invoke agent or emit activities",
     expect(activity).not.toHaveBeenCalled();
     expect(s.next()).toBeUndefined();
   }));
+test("worker runs ten different sessions concurrently and enforces the cap", () =>
+  withStore(async (s) => {
+    for (let i = 0; i < 12; i += 1)
+      s.enqueue({
+        ...e,
+        id: `delivery-${i}`,
+        sessionId: `session-${i}`,
+        issueId: `issue-${i}`,
+      });
+    const releases: Array<() => void> = [];
+    let concurrent = 0;
+    let peak = 0;
+    const run = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          concurrent += 1;
+          peak = Math.max(peak, concurrent);
+          releases.push(() => {
+            concurrent -= 1;
+            resolve("answer");
+          });
+        }),
+    );
+    const w = new Worker(
+      s,
+      { authorizeEvent: async () => true, activity: vi.fn() },
+      run,
+      () => {},
+      undefined,
+      "en",
+      10,
+    );
+    w.start();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(10));
+    expect(peak).toBe(10);
+    expect(
+      s.db.prepare("SELECT COUNT(*) AS count FROM jobs WHERE status='pending'").get()
+        ?.count,
+    ).toBe(2);
+    releases.splice(0).forEach((release) => release());
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(12));
+    releases.splice(0).forEach((release) => release());
+    await vi.waitFor(() =>
+      expect(
+        s.db.prepare("SELECT COUNT(*) AS count FROM jobs WHERE status='done'").get()
+          ?.count,
+      ).toBe(12),
+    );
+    expect(peak).toBe(10);
+    await w.stop();
+  }));
+test("worker keeps one session sequential while other sessions run concurrently", () =>
+  withStore(async (s) => {
+    s.enqueue(e);
+    s.enqueue({ ...e, id: "followup", action: "prompted" });
+    s.enqueue({
+      ...e,
+      id: "other",
+      sessionId: "session-2",
+      issueId: "issue-2",
+    });
+    const releases = new Map<string, () => void>();
+    const run = vi.fn(
+      (event: Event) =>
+        new Promise<string>((resolve) =>
+          releases.set(event.id, () => resolve("answer")),
+        ),
+    );
+    const w = new Worker(
+      s,
+      { authorizeEvent: async () => true, activity: vi.fn() },
+      run,
+      () => {},
+      undefined,
+      "en",
+      10,
+    );
+    w.start();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2));
+    expect(run.mock.calls.map(([event]) => event.id).sort()).toEqual([
+      "delivery-1",
+      "other",
+    ]);
+    releases.get("delivery-1")!();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(3));
+    expect(run.mock.calls[2][0].id).toBe("followup");
+    releases.get("other")!();
+    releases.get("followup")!();
+    await w.stop();
+  }));
 test("OAuth state expires, is single use, and callback does not trust request host", () =>
   withStore(async (s) => {
     const auth = new URL(

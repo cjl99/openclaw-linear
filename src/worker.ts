@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Store, type Event } from "./store.js";
+import { Store, type Event, type Job } from "./store.js";
 import { redact } from "./progress.js";
 import { presentation, type Locale } from "./presentation.js";
 export interface AgentRunner {
@@ -20,11 +20,16 @@ export interface Delivery {
   ): Promise<void>;
 }
 export class Worker {
-  private active?: Promise<void>;
+  private active = new Map<
+    string,
+    {
+      event: Event;
+      controller: AbortController;
+      promise: Promise<void>;
+    }
+  >();
   private timer?: ReturnType<typeof setInterval>;
   private stopped = true;
-  private controller = new AbortController();
-  private current?: Event;
   private shutdownRequested = false;
   constructor(
     private store: Store,
@@ -33,6 +38,7 @@ export class Worker {
     private log: (message: string) => void,
     private cancelStored?: (e: Event) => Promise<void>,
     private locale: Locale = "en",
+    private maxConcurrency = 1,
   ) {}
   start() {
     this.store.recover();
@@ -42,19 +48,40 @@ export class Worker {
     this.kick();
   }
   kick() {
-    if (this.stopped || this.active) return;
-    this.active = this.tick()
+    if (this.stopped) return;
+    while (this.active.size < this.maxConcurrency && this.startNext()) {
+      // Fill every available slot. Each session remains exclusive.
+    }
+  }
+  private startNext() {
+    const j = this.store.next(
+      [...this.active.values()].map(({ event }) => event.sessionId),
+    );
+    if (!j) return undefined;
+    const event = JSON.parse(j.event) as Event;
+    const controller = new AbortController();
+    const entry = {
+      event,
+      controller,
+      promise: Promise.resolve(),
+    };
+    this.active.set(j.id, entry);
+    entry.promise = this.process(j, event, controller)
       .catch(() => this.log("Linear worker error; pending work retained"))
       .finally(() => {
-        this.active = undefined;
+        this.active.delete(j.id);
+        this.kick();
       });
+    return entry.promise;
   }
   async stop() {
     this.stopped = true;
     this.shutdownRequested = true;
     clearInterval(this.timer);
-    this.controller.abort();
-    await this.active;
+    for (const { controller } of this.active.values()) controller.abort();
+    await Promise.allSettled(
+      [...this.active.values()].map(({ promise }) => promise),
+    );
   }
   async acknowledge(e: Event) {
     if (e.action === "stop") return;
@@ -89,13 +116,14 @@ export class Worker {
       this.store.db.exec("ROLLBACK");
       throw error;
     }
-    if (this.current?.sessionId === e.sessionId) this.controller.abort();
+    for (const active of this.active.values())
+      if (active.event.sessionId === e.sessionId) active.controller.abort();
     this.kick();
   }
   async tick() {
-    const j = this.store.next();
-    if (!j) return;
-    const e = JSON.parse(j.event) as Event;
+    await this.startNext();
+  }
+  private async process(j: Job, e: Event, controller: AbortController) {
     try {
       if (!(await this.linear.authorizeEvent(e))) {
         this.store.done(j.id);
@@ -154,14 +182,12 @@ export class Worker {
         return;
       if (this.shutdownRequested) return;
       this.store.running(j.id);
-      this.current = e;
-      this.controller = new AbortController();
       try {
         const output = await this.run(
           e,
           sessionId,
           j.runId,
-          this.controller.signal,
+          controller.signal,
         );
         this.store.output(j.id, output || presentation(this.locale).noResult);
       } catch {
@@ -170,8 +196,6 @@ export class Worker {
           presentation(this.locale).failed,
           "error",
         );
-      } finally {
-        this.current = undefined;
       }
     } catch {
       this.store.defer(j);

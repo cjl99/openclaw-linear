@@ -65,12 +65,16 @@ export class Store {
         .changes > 0
     );
   }
-  next(): Job | undefined {
+  next(excludedSessionIds: string[] = []): Job | undefined {
+    const unique = [...new Set(excludedSessionIds)];
+    const exclusion = unique.length
+      ? ` AND j.sessionId NOT IN (${unique.map(() => "?").join(",")})`
+      : "";
     return this.db
       .prepare(
-        "SELECT j.* FROM jobs j WHERE j.status IN ('pending','outbox') AND j.nextAt<=? AND NOT EXISTS (SELECT 1 FROM jobs p WHERE p.sessionId=j.sessionId AND p.seq<j.seq AND p.status!='done') ORDER BY j.seq LIMIT 1",
+        `SELECT j.* FROM jobs j WHERE j.status IN ('pending','outbox') AND j.nextAt<=? AND NOT EXISTS (SELECT 1 FROM jobs p WHERE p.sessionId=j.sessionId AND p.seq<j.seq AND p.status!='done')${exclusion} ORDER BY j.seq LIMIT 1`,
       )
-      .get(Date.now()) as unknown as Job | undefined;
+      .get(Date.now(), ...unique) as unknown as Job | undefined;
   }
   running(id: string) {
     this.db.prepare("UPDATE jobs SET status='running' WHERE id=?").run(id);

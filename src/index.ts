@@ -240,6 +240,7 @@ export function register(api: OpenClawPluginApi) {
           if (confirmed) store!.take(`active:${e.sessionId}`);
         },
         c.locale,
+        c.maxConcurrency,
       );
       recovery = new StartupRecovery(
         store,

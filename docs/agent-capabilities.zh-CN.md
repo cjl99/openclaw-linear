@@ -8,7 +8,7 @@
 
 | 优先级 | 能力 | 当前状态 |
 | --- | --- | --- |
-| P0 | created / prompted | 已接通；仍使用宿主配置的原生 harness、稳定 Session 和顺序队列 |
+| P0 | created / prompted | 已接通；使用宿主配置的原生 harness、稳定 Session、可配置的跨 Session 并发和严格的 Session 内顺序 |
 | P0 | stop | 已接通；`prompted` + `agentActivity.signal=stop` 走控制路径，不交给模型；取消精确 Gateway run，清理此前排队请求 |
 | P0 | 停止竞态 | 停止先于 run 接受时，收到真实 runId 后取消；停止期间静默进度，抑制迟到回执与旧结果 |
 | P0 | 无法确认停止 | 不声称成功；阻止该 Session 新执行，保留绑定，可重发停止重试取消 |
@@ -47,7 +47,7 @@ Linear OAuth app 必须订阅 **Agent Session events、Inbox Notifications、Per
 
 - 取消不撤销已经发生的文件、Git、外部 API 等副作用；宿主未管理的后台进程也不在插件承诺范围内。
 - Gateway 必须允许插件通过公开 `chat.abort` 取消对应运行；插件不会加管理权限或绕过授权。RPC 结果未知时保留安全阻塞。
-- 单 worker 仍按既有方式串行处理；其他 Session 的耗时任务可能延迟停止确认的 outbox 投递，但控制取消不等待该 outbox。
+- 不同 Agent Session 可并发执行，最多为 `maxConcurrency`；单个 Session 内仍串行。宿主自身的并发限制可能形成更低的实际上限。
 - 历史恢复预算为 100,000 字符 / 100 页；尚未做自动长上下文压缩。
 - 主动创建 API 无可传入的幂等键：本地标记写在 mutation 之前。丢失响应或进程中断后，保留“结果未知”，不能保证跨系统 exactly-once。
 - 原生工具映射、自动主动调度和完整授权恢复闭环尚未实现。

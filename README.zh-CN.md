@@ -83,6 +83,7 @@ chmod 700 /absolute/private/path/linear-state
   "organizationUrlKey": "example-workspace",
   "teamIds": ["00000000-0000-4000-8000-000000000001"],
   "autoAssignUserIds": [],
+  "maxConcurrency": 10,
   "locale": "zh-CN",
   "publicOrigin": "https://gateway.example.com",
   "stateDir": "/absolute/private/path/linear-state",
@@ -90,7 +91,7 @@ chmod 700 /absolute/private/path/linear-state
 }
 ```
 
-可用 `organizationId` 代替 `organizationUrlKey`；若同时提供，两者必须匹配。`autoAssignUserIds` 默认为空数组，即关闭按负责人自动委派。`locale` 控制插件生成的 Linear 活动和 OAuth 页面，默认为 `en`，也可设为 `zh-CN`。
+可用 `organizationId` 代替 `organizationUrlKey`；若同时提供，两者必须匹配。`autoAssignUserIds` 默认为空数组，即关闭按负责人自动委派。`maxConcurrency` 控制不同 Agent Session 之间的并发数（1–100，默认 1）；单个 Session 内仍严格串行。`locale` 控制插件生成的 Linear 活动和 OAuth 页面，默认为 `en`，也可设为 `zh-CN`。
 
 将 checkout 合并到现有 OpenClaw 插件配置中，不要覆盖无关条目：
 
@@ -107,6 +108,7 @@ chmod 700 /absolute/private/path/linear-state
           "organizationUrlKey": "example-workspace",
           "teamIds": ["00000000-0000-4000-8000-000000000001"],
           "autoAssignUserIds": [],
+          "maxConcurrency": 10,
           "locale": "zh-CN",
           "publicOrigin": "https://gateway.example.com",
           "stateDir": "/absolute/private/path/linear-state",

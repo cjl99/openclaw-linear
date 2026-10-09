@@ -10,6 +10,7 @@ export interface Config {
   stateDir: string;
   credentialsFile: string;
   autoAssignUserIds?: string[];
+  maxConcurrency?: number;
   locale?: Locale;
 }
 export interface Secrets {
@@ -17,7 +18,7 @@ export interface Secrets {
   clientSecret: string;
   webhookSecret: string;
 }
-export function config(value: unknown): Config {
+export function config(value: unknown): Config & { maxConcurrency: number } {
   const c = value as Config;
   if (
     !c ||
@@ -40,10 +41,21 @@ export function config(value: unknown): Config {
     throw Error("autoAssignUserIds must contain Linear user UUIDs");
   if (c.locale !== undefined && !["en", "zh-CN"].includes(c.locale))
     throw Error('locale must be "en" or "zh-CN"');
+  if (
+    c.maxConcurrency !== undefined &&
+    (!Number.isInteger(c.maxConcurrency) ||
+      c.maxConcurrency < 1 ||
+      c.maxConcurrency > 100)
+  )
+    throw Error("maxConcurrency must be an integer between 1 and 100");
   const u = new URL(c.publicOrigin);
   if (u.protocol !== "https:" || u.origin !== c.publicOrigin)
     throw Error("publicOrigin must be an HTTPS origin");
-  return { ...c, locale: c.locale ?? "en" };
+  return {
+    ...c,
+    maxConcurrency: c.maxConcurrency ?? 1,
+    locale: c.locale ?? "en",
+  };
 }
 export function secrets(c: Config): Secrets {
   if (statSync(c.credentialsFile).mode & 0o077)

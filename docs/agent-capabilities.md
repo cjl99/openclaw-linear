@@ -8,7 +8,7 @@ Design principle: **do not add model tools, start a separate Codex CLI, or creat
 
 | Priority | Capability | Status |
 | --- | --- | --- |
-| P0 | created / prompted | Implemented with the host-configured native harness, stable sessions, and a sequential queue |
+| P0 | created / prompted | Implemented with the host-configured native harness, stable sessions, configurable cross-session concurrency, and strict per-session ordering |
 | P0 | stop | `prompted` plus `agentActivity.signal=stop` follows a control path rather than the model; it cancels the exact Gateway run and clears earlier queued requests |
 | P0 | cancellation race | If stop arrives before run acceptance, cancellation runs after the real run ID is returned; progress is muted and late receipts and stale results are suppressed |
 | P0 | unconfirmed cancellation | Does not claim success; blocks new work in that session, preserves the binding, and allows another stop request to retry cancellation |
@@ -47,7 +47,7 @@ Before each production deployment, verify in an authorized test workspace:
 
 - Cancellation cannot undo file changes, Git operations, external API calls, or other completed side effects. Background processes unmanaged by the host are also outside the guarantee.
 - The Gateway must allow the plugin to cancel the matching run through the public `chat.abort` method. The plugin does not add administrative privileges or bypass authorization. Unknown RPC outcomes keep the session safely blocked.
-- A single worker remains sequential. Long work in other sessions can delay cancellation-confirmation outbox delivery, though the control cancellation itself does not wait for that outbox.
+- Work is concurrent across Agent Sessions up to `maxConcurrency`, while each Session remains sequential. The host's own concurrency limit may provide a lower effective ceiling.
 - History recovery is limited to 100,000 characters and 100 pages; automatic long-context compaction is not implemented.
 - Proactive creation APIs accept no caller-provided idempotency key. The local marker is written before the mutation. Lost responses and process interruption remain “outcome unknown,” so cross-system exactly-once delivery is not guaranteed.
 - Native tool mappings, automatic proactive scheduling, and a complete authorization-recovery loop are not implemented.
