@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { config, secrets } from "./config.js";
 import { Store } from "./store.js";
 import { Linear } from "./linear.js";
+import { McpAuthBroker } from "./mcp-auth.js";
 import { Worker } from "./worker.js";
 import { body, verify, normalize } from "./webhook.js";
 import { callback } from "./oauth.js";
@@ -40,6 +41,7 @@ export function register(api: OpenClawPluginApi) {
   };
   let store: Store | undefined;
   let linear: Linear | undefined;
+  let mcpAuth: McpAuthBroker | undefined;
   let worker: Worker | undefined;
   let assignments: Assignments | undefined;
   let progress: Progress | undefined;
@@ -55,6 +57,8 @@ export function register(api: OpenClawPluginApi) {
     async start() {
       store = new Store(c.stateDir);
       linear = new Linear(c, secrets(c), store);
+      mcpAuth = new McpAuthBroker(linear, c.stateDir);
+      await mcpAuth.start();
       // Migrate interrupted runs accepted by the earlier plugin version, which
       // stored the host receipt but not the cancellation binding.
       for (const row of store.db
@@ -269,6 +273,8 @@ export function register(api: OpenClawPluginApi) {
       await assignments?.stop();
       await progress?.stop();
       await Promise.allSettled(receipts);
+      await mcpAuth?.stop();
+      mcpAuth = undefined;
       store?.close();
       store = undefined;
       linear = undefined;
