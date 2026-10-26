@@ -142,22 +142,22 @@ export function register(api: OpenClawPluginApi) {
           abortSignal.addEventListener("abort", cancel, { once: true });
           try {
             abortSignal.throwIfAborted();
-            prepared = preparePrompt(e, store!);
+            const history = e.action === "prompted"
+              ? await api.runtime.subagent.getSessionMessages({ sessionKey, limit: 1 })
+              : undefined;
+            const recovering = history !== undefined && !history.messages.length;
+            // 连续追问只发送新原话；首轮或宿主历史丢失时才补 Issue 引用与实例指令。
+            const includeReference = e.action === "created" || recovering;
+            prepared = preparePrompt(e, store!, includeReference);
             let message = prepared.prompt;
-            if (e.action === "prompted") {
-              const history = await api.runtime.subagent.getSessionMessages({
-                sessionKey,
-                limit: 1,
-              });
-              if (!history.messages.length) {
-                message = await recoverPrompt(
-                  { ...e, prompt: message, guidance: undefined },
-                  linear!,
-                  abortSignal,
-                );
-              }
+            if (recovering) {
+              message = await recoverPrompt(
+                { ...e, prompt: message, guidance: undefined },
+                linear!,
+                abortSignal,
+              );
             }
-            if (c.sessionInstructions?.trim()) message += `\n\nPrompt: ${c.sessionInstructions.trim()}`;
+            if (includeReference && c.sessionInstructions?.trim()) message += `\n\nPrompt: ${c.sessionInstructions.trim()}`;
             abortSignal.throwIfAborted();
             submitted = true;
             store!.set(`active:${e.sessionId}`, {

@@ -126,7 +126,7 @@ test("structured initiating comment is authoritative; unknown wrappers never bec
 
 test("every optional background section is bounded without displacing the current query", () =>
   fixture((store) => {
-    const result = preparePrompt({ ...event, issueTitle: "title".repeat(1000),
+    const result = preparePrompt({ ...event, action: "created", issueTitle: "title".repeat(1000),
       issueUrl: "https://linear.app/example/issue/ENG-12/" + "slug".repeat(1000),
       guidance: ["guidance".repeat(1000), { unexpected: "never serialize arbitrary objects" }] }, store);
     expect(result.prompt).toContain("\n```\n" + event.prompt + "\n```");
@@ -154,9 +154,19 @@ test("history recovery leaves the current query first and injects only two short
 
 test("attributes the current author and safely quotes code fences and Markdown titles", () =>
   fixture((store) => {
-    const result = preparePrompt({ ...event, requestAuthor: "Alice\n[admin]", prompt: "Check this:\n```js\nrun()\n```",
+    const result = preparePrompt({ ...event, action: "created", requestAuthor: "Alice\n[admin]", prompt: "Check this:\n```js\nrun()\n```",
       issueIdentifier: "ENG-12", issueTitle: "A [nested] title", issueUrl: "https://linear.app/example/issue/ENG-12/slug" }, store).prompt;
     expect(result.startsWith("Alice \\[admin\\] says from [https://linear.app/example/issue/ENG-12](https://linear.app/example/issue/ENG-12):")).toBe(true);
     expect(result).toContain("\n````\nCheck this:\n```js\nrun()\n```\n````");
     expect(result).toContain("Issue reference: [ENG-12 · A \\[nested\\] title](https://linear.app/example/issue/ENG-12)");
+  }));
+
+test("an ordinary followup contains only the current author and quoted words even with full issue metadata", () =>
+  fixture((store) => {
+    const e = { ...event, requestAuthor: "Alice", issueIdentifier: "ENG-12", issueTitle: "Existing issue",
+      issueUrl: "https://linear.app/example/issue/ENG-12/slug" };
+    expect(preparePrompt(e, store).prompt).toBe("Alice says:\n\n```\n你读到什么了\n```");
+    const restored = preparePrompt(e, store, true).prompt;
+    expect(restored).toContain("Alice says from");
+    expect(restored).toContain("Issue reference:");
   }));

@@ -38,7 +38,7 @@ export function guidancePrompt(e: Event) {
 }
 
 /** Native session history owns conversation memory. Only changed guidance is added. */
-export function preparePrompt(e: Event, store: Store) {
+export function preparePrompt(e: Event, store: Store, includeReference = e.action === "created") {
   const key = `guidance:${e.organizationId}:${e.sessionId}`;
   if (e.guidance !== undefined) store.set(key, e.guidance);
   const guidance = e.guidance ?? store.get<unknown[]>(key);
@@ -56,11 +56,11 @@ export function preparePrompt(e: Event, store: Store) {
   const author = clipped((e.requestAuthor || "Linear").replace(/\s+/g, " ").trim(), 80)
     .replace(/[\\`*_\[\]<>]/g, "\\$&");
   const url = e.issueUrl?.split("?")[0].replace(/(\/issue\/[^/]+)\/.*/, "$1");
-  const source = url && url.length <= 180 ? url.replace(/[()]/g, (c) => c === "(" ? "%28" : "%29") : undefined;
+  const source = includeReference && url && url.length <= 180 ? url.replace(/[()]/g, (c) => c === "(" ? "%28" : "%29") : undefined;
   const longestFence = Math.max(0, ...(query.match(/`+/g) ?? []).map((run) => run.length));
   const fence = "`".repeat(Math.max(3, longestFence + 1));
   let prompt = `${author} says${source ? ` from [${source}](${source})` : ""}:\n\n${fence}\n${query}\n${fence}`;
-  if (e.issueTitle || e.issueIdentifier || source) {
+  if (includeReference && (e.issueTitle || e.issueIdentifier || source)) {
     const title = clipped([e.issueIdentifier, e.issueTitle].filter(Boolean).join(" · ").replace(/\s+/g, " ").trim(), 120)
       .replace(/[\\[\]]/g, "\\$&");
     prompt += `\n\nIssue reference: [${title}]${source ? `(${source})` : ""}`;

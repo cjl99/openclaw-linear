@@ -135,7 +135,7 @@ test("Gateway route rejects unsigned requests and dispatches signed session thro
     expect(run).toHaveBeenCalledOnce();
     expect(await send(true, true)).toBe(200);
     await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2));
-    expect(run.mock.calls[1][0].message).toBe("Linear says:\n\n```\n你读到什么了\n```\n\nPrompt: If blocked, notify the configured owner privately.");
+    expect(run.mock.calls[1][0].message).toBe("Linear says:\n\n```\n你读到什么了\n```");
     expect(run.mock.calls[1][0].sessionKey).toBe(params.sessionKey);
     expect(JSON.stringify(content.mock.calls)).not.toContain("本轮上下文");
   } finally {
