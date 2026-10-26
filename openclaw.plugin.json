@@ -26,6 +26,11 @@
         "default": [],
         "items": { "type": "string", "format": "uuid" }
       },
+      "autoAssignExcludedProjectIds": {
+        "type": "array",
+        "default": [],
+        "items": { "type": "string", "format": "uuid" }
+      },
       "teamIds": {
         "type": "array",
         "minItems": 1,

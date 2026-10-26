@@ -10,6 +10,7 @@ export interface Config {
   stateDir: string;
   credentialsFile: string;
   autoAssignUserIds?: string[];
+  autoAssignExcludedProjectIds?: string[];
   maxConcurrency?: number;
   locale?: Locale;
   /** 实例配置的消息末尾指令，由宿主追加；不接受外部事件覆盖。 */
@@ -41,6 +42,14 @@ export function config(value: unknown): Config & { maxConcurrency: number } {
       ))
   )
     throw Error("autoAssignUserIds must contain Linear user UUIDs");
+  if (
+    c.autoAssignExcludedProjectIds !== undefined &&
+    (!Array.isArray(c.autoAssignExcludedProjectIds) ||
+      c.autoAssignExcludedProjectIds.some(
+        (id) => typeof id !== "string" || !/^[a-f0-9-]{36}$/i.test(id),
+      ))
+  )
+    throw Error("autoAssignExcludedProjectIds must contain Linear project UUIDs");
   if (c.locale !== undefined && !["en", "zh-CN"].includes(c.locale))
     throw Error('locale must be "en" or "zh-CN"');
   if (

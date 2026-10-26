@@ -118,6 +118,35 @@ test("fresh API state rejects stale, moved, reassigned, completed or foreign wor
     }
   }
 });
+test("excluded projects are never delegated, including queued events", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "linear-assignment-"));
+  const store = new Store(dir);
+  const query = vi.fn(async () => ({
+    organization: { id: "org" },
+    issue: {
+      ...payload.data,
+      assignee: { id: "me" },
+      project: { id: "project" },
+      team: { id: "team" },
+      state: { type: "started" },
+    },
+  }));
+  try {
+    const a = new Assignments(
+      { ...cfg, autoAssignExcludedProjectIds: ["project"] },
+      store,
+      { query, organizationId: () => "org" } as any,
+      () => {},
+    );
+    a.enqueue(assignment(payload, cfg, "event")!);
+    await a.tick();
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(store.db.prepare("SELECT status FROM assignments").get()?.status).toBe("done");
+  } finally {
+    store.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 test("progress forwards details with redaction, ignores unrelated runs and deduplicates events", async () => {
   const content = vi.fn(async () => {});
   const link = vi.fn(async () => {});

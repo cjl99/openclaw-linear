@@ -82,6 +82,7 @@ Example plugin config:
   "organizationUrlKey": "example-workspace",
   "teamIds": ["00000000-0000-4000-8000-000000000001"],
   "autoAssignUserIds": [],
+  "autoAssignExcludedProjectIds": [],
   "maxConcurrency": 10,
   "locale": "en",
   "publicOrigin": "https://gateway.example.com",
@@ -90,7 +91,7 @@ Example plugin config:
 }
 ```
 
-`organizationId` may be used instead of `organizationUrlKey`; if both are set, both must match. `autoAssignUserIds` defaults to an empty array, which disables assignee-based delegation. `maxConcurrency` controls concurrent work across different Agent Sessions (1–100, default 1); each individual Session remains sequential. `locale` controls plugin-generated Linear activities and OAuth pages; it defaults to `en` and also accepts `zh-CN`.
+`organizationId` may be used instead of `organizationUrlKey`; if both are set, both must match. `autoAssignUserIds` defaults to an empty array, which disables assignee-based delegation. `autoAssignExcludedProjectIds` is an optional allowlisted list of Linear project UUIDs; issues in those projects are never auto-delegated, including events queued before the exclusion was configured. `maxConcurrency` controls concurrent work across different Agent Sessions (1–100, default 1); each individual Session remains sequential. `locale` controls plugin-generated Linear activities and OAuth pages; it defaults to `en` and also accepts `zh-CN`.
 
 Add the checkout to the existing OpenClaw plugin configuration without replacing unrelated entries:
 
@@ -107,6 +108,7 @@ Add the checkout to the existing OpenClaw plugin configuration without replacing
           "organizationUrlKey": "example-workspace",
           "teamIds": ["00000000-0000-4000-8000-000000000001"],
           "autoAssignUserIds": [],
+          "autoAssignExcludedProjectIds": [],
           "maxConcurrency": 10,
           "locale": "en",
           "publicOrigin": "https://gateway.example.com",

@@ -88,7 +88,7 @@ export class Assignments {
       const e = JSON.parse(j.event as string) as Assignment;
       if (this.c.autoAssignUserIds?.includes(e.assigneeId)) {
         const d = await this.linear.query<any>(
-          "query($id:String!){organization{id} issue(id:$id){id updatedAt archivedAt assignee{id} delegate{id} team{id} state{type}}}",
+          "query($id:String!){organization{id} issue(id:$id){id updatedAt archivedAt assignee{id} delegate{id} project{id} team{id} state{type}}}",
           { id: e.issueId },
         );
         const issue = d.issue;
@@ -101,6 +101,7 @@ export class Assignments {
           !this.store.get<{denied:boolean}>(`team-permission:${issue.team.id}`)?.denied &&
           issue.assignee?.id === e.assigneeId &&
           !issue.delegate &&
+          !this.c.autoAssignExcludedProjectIds?.includes(issue.project?.id) &&
           !issue.archivedAt &&
           !["completed", "canceled"].includes(issue.state.type) &&
           Date.parse(issue.updatedAt) === Date.parse(e.updatedAt)
