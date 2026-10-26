@@ -2,12 +2,10 @@
 
 English | [简体中文](context.zh-CN.md)
 
-- First turn: pass Linear's `promptContext` directly.
-- Follow-ups: pass only the new message and reuse native session history. Do not inject the previous model answer or the current comment again.
-- Guidance: add guidance from its separate field only when it is not already present in the message; after successful delivery, include it again only when it changes.
-- Do not automatically scan the issue or comments, maintain a parallel work log or source ledger, or emit a context-report activity.
-- When current descriptions, other comments, or project context are needed, the agent should read them on demand through its existing Linear tools. Unread content must not be claimed as known. This plugin adds no such tools.
+The current user query always comes first. On creation, use the structured initiating comment, otherwise extract the platform user-request block or primary directive comment. Never pass the entire issue/parent/comment XML snapshot as the user query. If a wrapper contains no identifiable request, ask the agent to read the original through official Linear MCP rather than guessing.
 
-There are two bounded fallbacks. Inputs longer than 18,000 characters show the first 12,000 characters and provide a private path to the complete original, with an explicit instruction to read that original before acting; this is not a summary. When host history is missing, the plugin recovers context from immutable Agent Activities, limited to 100 pages and 100,000 characters. HTTP request bodies remain limited to 1 MiB.
+Only a short issue title (120 characters), canonical issue URL (180 characters), and changed guidance excerpt (240 characters) may follow. No descriptions, parent issues, comment trees, relationships, or arbitrary guidance-object serialization are injected. The agent must read full issue/comments through official Linear MCP before acting. Follow-ups retain their raw query and native session history, with the same bounded reference suffix.
 
-Historical messages and private caches created by older releases are not deleted, but the old context ledger is no longer read or extended. A new message does not imply a full issue refresh. Start a new Agent Session when a conversation should have no legacy wrapping.
+If the actual user query exceeds 6,000 characters, preserve its complete original in a private file, show the first 4,000 and last 1,000 characters, and require reading the original before acting. This never saves a discarded issue snapshot as a substitute query. Missing host history is recovered from immutable Agent Activities; only the last two relevant prompt/response/elicitation/error excerpts (160 characters each) follow the current request. Thoughts/actions and the current activity are excluded. Recovery scanning retains its 100-page/100,000-character safety budget and explicit failure on pagination errors. HTTP bodies remain capped at 1 MiB.
+
+Old transcripts are retained. Start a new Agent Session to avoid already-injected legacy snapshots. The plugin adds no replacement business CRUD tools.

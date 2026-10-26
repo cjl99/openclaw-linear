@@ -18,7 +18,7 @@
 | P0 | 去重与投递 | Session created / Activity ID 优先去重；稳定 UUID outbox；不确定 Activity 投递会向前翻页查重，而非只查最后 100 条 |
 | P1 | thought / action / response / error | 保留已接通的执行过程、临时进度、脱敏和结果投递 |
 | P1 | Guidance | 独立字段补充去重，成功传递后仅新增/变化时注入；未携带字段时沿用最近版本，不提升为宿主安全指令 |
-| P1 | 简洁上下文 | 首轮 promptContext、追问原消息，复用原生历史；不扫描评论、不回填回答、不发送覆盖报告。背景用已有 Linear 工具按需读取，详见[上下文设计](context.zh-CN.md) |
+| P1 | 简洁上下文 | 用户本轮原话在前，标题/链接/指导均裁剪；完整 Issue/评论通过官方 MCP 读取；历史缺失只补两条短摘录。背景用已有 Linear 工具按需读取，详见[上下文设计](context.zh-CN.md) |
 | P1 | Agent Activities 历史 | prompted 时若宿主消息为空，分页读取不可变 Activities 重建上下文；去掉当前 prompt、临时活动；超预算/分页异常明确报错，不静默丢弃 |
 | P1 | AppUserNotification | 记录最小元数据；取消委派通知停止该 Issue 的绑定会话；reaction/普通评论/状态通知不启动新模型任务 |
 | P1 | externalUrls | OpenClaw 会话链接已接通；通用新增链接 API 适配已有，未新增模型入口 |

@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Config } from "./config.js";
 import type { Event } from "./store.js";
+import { initialRequest } from "./context.js";
 export function verify(
   raw: Buffer,
   signature: string | undefined,
@@ -47,6 +48,8 @@ export function normalize(
   const stop = p.action === "prompted" && p.agentActivity.signal === "stop";
   if (!stop && (typeof prompt !== "string" || !prompt.trim()))
     throw Error("Invalid prompt");
+  const request = stop ? "" : p.action === "created" ? initialRequest(prompt, s.comment?.body) : prompt;
+  if (!stop && !request.trim()) throw Error("Invalid prompt");
   return {
     id:
       p.action === "created"
@@ -57,7 +60,7 @@ export function normalize(
     organizationId: p.organizationId,
     sessionId: s.id,
     issueId: s.issue.id,
-    prompt: stop ? "" : prompt,
+    prompt: request,
     action: stop ? "stop" : p.action,
     ...(Array.isArray(p.guidance) ? { guidance: p.guidance } : {}),
     ...(typeof p.agentActivity?.signal === "string"

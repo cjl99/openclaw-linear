@@ -234,3 +234,18 @@ test("OAuth state expires, is single use, and callback does not trust request ho
     await expect(callback(u, c, s, linear)).rejects.toThrow();
     expect(exchange).toHaveBeenCalledTimes(1);
   }));
+
+test("created webhook keeps only the initiating user request rather than the issue snapshot", () => {
+  const now = Date.now();
+  const result = normalize({ type: "AgentSessionEvent", action: "created", webhookTimestamp: now,
+    organizationId: "org", promptContext: "<issue><description>large background</description></issue>\n<user-request>Investigate only</user-request>",
+    agentSession: { id: "s", issue: { id: "i" } } }, { organizationId: "org" } as any, "delivery", now);
+  expect(result?.prompt).toBe("Investigate only");
+});
+
+test("an empty extracted user request is rejected before queueing", () => {
+  const now = Date.now();
+  expect(() => normalize({ type: "AgentSessionEvent", action: "created", webhookTimestamp: now,
+    organizationId: "org", promptContext: "<issue></issue>\n<user-request> </user-request>",
+    agentSession: { id: "s", issue: { id: "i" } } }, { organizationId: "org" } as any, "delivery", now)).toThrow("Invalid prompt");
+});

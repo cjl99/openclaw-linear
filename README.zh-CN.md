@@ -153,7 +153,7 @@ curl -i -X POST https://gateway.example.com/linear/webhook -d '{}'
 
 Session key 由工作区 ID 和 Linear Agent Session ID 派生。同一 Linear Agent Session 内的追问复用 OpenClaw 历史；同一 Issue 的不同 Agent Session 相互独立。
 
-首轮使用 Linear `promptContext`。追问只发送新消息，依赖已有 OpenClaw Session；Guidance 仅在新增或变化时注入。若宿主历史不可用，插件可从不可变 Agent Activities 中恢复有界上下文。
+用户本轮原话始终在最前。首轮不再透传 Issue XML，只补短标题、链接和裁剪后的指导；完整 Issue/评论用官方 MCP 读取。追问复用原生历史，历史缺失时只补两条短摘录。详见[上下文上限](docs/context.zh-CN.md)。
 
 如需读取最新 Issue 详情、评论、项目和文档，应另行连接 Linear 官方 MCP server。插件刻意不复制通用 Linear CRUD 工具。MCP 授权独立于插件 OAuth 应用，也不受 `teamIds` 限制。
 

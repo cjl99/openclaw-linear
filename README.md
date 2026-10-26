@@ -152,7 +152,7 @@ Expected result: `401` for an unsigned POST and `405` for GET. A generic SPA res
 
 The session key is derived from the workspace ID and Linear Agent Session ID. Follow-ups within one Linear Agent Session reuse OpenClaw history; a different Agent Session on the same issue is independent.
 
-The first turn uses Linear's `promptContext`. Follow-ups send the new message and rely on the existing OpenClaw session. Guidance is included only when new or changed. If host history is unavailable, the plugin can reconstruct bounded context from immutable Agent Activities.
+The current user query always comes first. First-turn issue XML is reduced to the initiating request; only a short title/link and bounded guidance follow. Full issue/comments are read through official Linear MCP. Follow-ups reuse native history; missing history adds only two short activity excerpts. See [context limits](docs/context.md).
 
 For current issue details, comments, projects, and documents, connect the agent separately to Linear's official MCP server. This plugin intentionally does not duplicate general Linear CRUD tools. MCP authorization is independent from the plugin OAuth app and is not constrained by `teamIds`.
 

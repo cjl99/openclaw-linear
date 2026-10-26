@@ -106,7 +106,7 @@ export class Linear {
       return false;
     const t = await this.token();
     const d = await this.query<any>(
-      "query($id:String!){ organization { id } agentSession(id:$id){ appUser { id } issue { id identifier title team { id } } } }",
+      "query($id:String!){ organization { id } agentSession(id:$id){ appUser { id } issue { id identifier title url team { id } } } }",
       { id: e.sessionId },
     );
     const s = d.agentSession;
@@ -123,6 +123,7 @@ export class Linear {
       this.store.set(`team:${e.sessionId}`, s.issue.team.id);
       e.issueIdentifier = s.issue.identifier;
       e.issueTitle = s.issue.title;
+      e.issueUrl = s.issue.url;
     }
     return authorized;
   }

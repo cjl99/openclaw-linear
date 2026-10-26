@@ -11,6 +11,8 @@ export interface Event {
   action: string;
   issueIdentifier?: string;
   issueTitle?: string;
+  /** authorizeEvent 从已授权 Issue 读取，供最小背景链接使用。 */
+  issueUrl?: string;
   guidance?: unknown[];
   signal?: string;
   activityId?: string;

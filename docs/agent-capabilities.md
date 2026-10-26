@@ -18,7 +18,7 @@ Design principle: **do not add model tools, start a separate Codex CLI, or creat
 | P0 | deduplication and delivery | Prefers Session-created and Activity IDs for deduplication, uses stable outbox UUIDs, and searches backward through pages before retrying an uncertain Activity delivery |
 | P1 | thought / action / response / error | Forwards implemented execution progress, temporary updates, redacted tool details, and final results |
 | P1 | Guidance | Adds and deduplicates the separate Guidance field; injects it again only when new or changed, retains the latest value when absent, and does not elevate it into host security instructions |
-| P1 | minimal context | Uses promptContext on the first turn and the raw follow-up message thereafter, reusing native history without scanning comments, replaying answers, or emitting context reports. See [context behavior](context.md) |
+| P1 | minimal context | Keeps the current user query first, with bounded title/link/guidance; full issue/comments are read through official MCP. Missing history adds only two short activity excerpts. See [context behavior](context.md) |
 | P1 | Agent Activities history | When host messages are missing, pages through immutable Activities to rebuild context; removes the current prompt and ephemeral activities and fails explicitly on budget or pagination errors |
 | P1 | AppUserNotification | Records minimal metadata; canceled delegation stops sessions bound to the issue; reactions, ordinary comments, and status notifications do not start model work |
 | P1 | externalUrls | Adds a link to the OpenClaw session through the supported external URL API |
