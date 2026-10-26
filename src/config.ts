@@ -12,6 +12,8 @@ export interface Config {
   autoAssignUserIds?: string[];
   maxConcurrency?: number;
   locale?: Locale;
+  /** 实例配置的消息末尾指令，由宿主追加；不接受外部事件覆盖。 */
+  sessionInstructions?: string;
 }
 export interface Secrets {
   clientId: string;
@@ -48,6 +50,8 @@ export function config(value: unknown): Config & { maxConcurrency: number } {
       c.maxConcurrency > 100)
   )
     throw Error("maxConcurrency must be an integer between 1 and 100");
+  if (c.sessionInstructions !== undefined && (typeof c.sessionInstructions !== "string" || c.sessionInstructions.length > 1000))
+    throw Error("sessionInstructions must be a string of at most 1000 characters");
   const u = new URL(c.publicOrigin);
   if (u.protocol !== "https:" || u.origin !== c.publicOrigin)
     throw Error("publicOrigin must be an HTTPS origin");

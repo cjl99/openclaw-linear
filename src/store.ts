@@ -8,6 +8,8 @@ export interface Event {
   sessionId: string;
   issueId: string;
   prompt: string;
+  /** Webhook 提供的当轮发起者显示名，仅用于消息署名，不作为认证或权限依据。 */
+  requestAuthor?: string;
   action: string;
   issueIdentifier?: string;
   issueTitle?: string;

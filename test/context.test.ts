@@ -29,20 +29,20 @@ function fixture(check: (store: Store) => void) {
     rmSync(dir, { recursive: true, force: true });
   }
 }
-test("ordinary followup is verbatim, ignoring old work records and ledgers", () =>
+test("ordinary followup quotes the new request without old work records and ledgers", () =>
   fixture((store) => {
     store.set("context-work:org:session", { answer: "old assistant reply" });
     store.set("context-ledger:org:session", { comments: ["old comment"] });
-    expect(preparePrompt(event, store).prompt).toBe(event.prompt);
+    expect(preparePrompt(event, store).prompt).toBe("Linear says:\n\n```\n" + event.prompt + "\n```");
     expect(existsSync(join(store.dir, "context"))).toBe(false);
     expect(existsSync(join(store.dir, "long-prompts"))).toBe(false);
   }));
-test("created promptContext is preserved", () =>
+test("plain created request is preserved inside the quote", () =>
   fixture((store) => {
     const prompt = "Issue MAR-10\nDescription\nComment: hello";
     expect(
       preparePrompt({ ...event, action: "created", prompt }, store).prompt,
-    ).toBe(prompt);
+    ).toBe("Linear says:\n\n```\n" + prompt + "\n```");
   }));
 test("guidance delivered once, changed guidance delivered again", () =>
   fixture((store) => {
@@ -52,21 +52,21 @@ test("guidance delivered once, changed guidance delivered again", () =>
     );
     expect(first.prompt).toContain("Use isolated checkout");
     first.commit();
-    expect(preparePrompt(event, store).prompt).toBe(event.prompt);
+    expect(preparePrompt(event, store).prompt).toBe("Linear says:\n\n```\n" + event.prompt + "\n```");
     const changed = preparePrompt(
       { ...event, guidance: [{ body: "Read only" }] },
       store,
     );
     expect(changed.prompt).toContain("Read only");
     changed.commit();
-    expect(preparePrompt(event, store).prompt).toBe(event.prompt);
+    expect(preparePrompt(event, store).prompt).toBe("Linear says:\n\n```\n" + event.prompt + "\n```");
   }));
 test("failed run does not mark guidance delivered; sessions stay isolated", () =>
   fixture((store) => {
     preparePrompt({ ...event, guidance: ["Read only"] }, store);
     expect(preparePrompt(event, store).prompt).toContain("Read only");
     expect(preparePrompt({ ...event, sessionId: "other" }, store).prompt).toBe(
-      event.prompt,
+      "Linear says:\n\n```\n" + event.prompt + "\n```",
     );
   }));
 test("existing guidance not duplicated and clearing is explicit once", () =>
@@ -80,12 +80,12 @@ test("existing guidance not duplicated and clearing is explicit once", () =>
       },
       store,
     );
-    expect(first.prompt).toBe("Task\nRead only");
+    expect(first.prompt).toBe("Linear says:\n\n```\nTask\nRead only\n```");
     first.commit();
     const cleared = preparePrompt({ ...event, guidance: [] }, store);
     expect(cleared.prompt).toContain("cleared");
     cleared.commit();
-    expect(preparePrompt(event, store).prompt).toBe(event.prompt);
+    expect(preparePrompt(event, store).prompt).toBe("Linear says:\n\n```\n" + event.prompt + "\n```");
   }));
 test("only long input uses a private complete original", () =>
   fixture((store) => {
@@ -105,13 +105,14 @@ test("created request precedes minimal issue reference; huge issue/parent/commen
     const context = `<issue identifier="ENG-12"><title>Fix it</title><description>${"background".repeat(5000)}</description><parent-issue><description>parent secret background</description></parent-issue></issue>\n<other-thread><comment>unrelated old comment</comment></other-thread>\n<user-request>Only check the current failure; do not change data.</user-request>`;
     const result = preparePrompt({ ...event, action: "created", prompt: context,
       issueIdentifier: "ENG-12", issueTitle: "Fix it", issueUrl: "https://linear.app/example/issue/ENG-12/a-very-long-slug" }, store);
-    expect(result.prompt.startsWith("Only check the current failure; do not change data.")).toBe(true);
+    expect(result.prompt).toContain("\n```\nOnly check the current failure; do not change data.\n```\n");
+    expect(result.prompt.indexOf("Only check")).toBeLessThan(result.prompt.indexOf("Issue reference:"));
     expect(result.prompt).toContain("https://linear.app/example/issue/ENG-12");
     expect(result.prompt).not.toContain("a-very-long-slug");
     expect(result.prompt).not.toContain("background");
     expect(result.prompt).not.toContain("unrelated old comment");
     expect(result.prompt).toContain("official Linear MCP");
-    expect(result.prompt.length).toBeLessThan(350);
+    expect(result.prompt.length).toBeLessThan(550);
     expect(existsSync(join(store.dir, "long-prompts"))).toBe(false);
   }));
 
@@ -128,8 +129,9 @@ test("every optional background section is bounded without displacing the curren
     const result = preparePrompt({ ...event, issueTitle: "title".repeat(1000),
       issueUrl: "https://linear.app/example/issue/ENG-12/" + "slug".repeat(1000),
       guidance: ["guidance".repeat(1000), { unexpected: "never serialize arbitrary objects" }] }, store);
-    expect(result.prompt.startsWith(event.prompt)).toBe(true);
-    expect(result.prompt.length).toBeLessThan(600);
+    expect(result.prompt).toContain("\n```\n" + event.prompt + "\n```");
+    expect(result.prompt.indexOf(event.prompt)).toBeLessThan(result.prompt.indexOf("Issue reference:"));
+    expect(result.prompt.length).toBeLessThan(850);
     expect(result.prompt).not.toContain("unexpected");
   }));
 
@@ -149,3 +151,12 @@ test("history recovery leaves the current query first and injects only two short
   expect(prompt).not.toContain("internal thoughts");
   expect(prompt).not.toContain("duplicated current request");
 });
+
+test("attributes the current author and safely quotes code fences and Markdown titles", () =>
+  fixture((store) => {
+    const result = preparePrompt({ ...event, requestAuthor: "Alice\n[admin]", prompt: "Check this:\n```js\nrun()\n```",
+      issueIdentifier: "ENG-12", issueTitle: "A [nested] title", issueUrl: "https://linear.app/example/issue/ENG-12/slug" }, store).prompt;
+    expect(result.startsWith("Alice \\[admin\\] says from [https://linear.app/example/issue/ENG-12](https://linear.app/example/issue/ENG-12):")).toBe(true);
+    expect(result).toContain("\n````\nCheck this:\n```js\nrun()\n```\n````");
+    expect(result).toContain("Issue reference: [ENG-12 · A \\[nested\\] title](https://linear.app/example/issue/ENG-12)");
+  }));

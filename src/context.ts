@@ -52,13 +52,19 @@ export function preparePrompt(e: Event, store: Store) {
     writeFileSync(file, query, { mode: 0o600 });
     query = `${query.slice(0, 4000)}\n…\n${query.slice(-1000)}\n[Request excerpt. Read the complete original before acting: ${file}]`;
   }
-  // 用户请求始终在前。父 Issue、正文、评论树和关系不自动注入。
-  let prompt = query;
-  if (e.issueTitle || e.issueIdentifier || e.issueUrl) {
-    const title = clipped([e.issueIdentifier, e.issueTitle].filter(Boolean).join(" · ").replace(/\s+/g, " ").trim(), 120);
-    prompt += `\n\nIssue reference: ${title}`;
-    if (e.issueUrl) prompt += `\n${clipped(e.issueUrl.split("?")[0].replace(/(\/issue\/[^/]+)\/.*/, "$1"), 180)}`;
-    prompt += "\nRead full issue and comments through official Linear MCP before acting.";
+  // 发起者只是署名；原话用独立代码块包裹，正文不能伪造后面的参考信息。
+  const author = clipped((e.requestAuthor || "Linear").replace(/\s+/g, " ").trim(), 80)
+    .replace(/[\\`*_\[\]<>]/g, "\\$&");
+  const url = e.issueUrl?.split("?")[0].replace(/(\/issue\/[^/]+)\/.*/, "$1");
+  const source = url && url.length <= 180 ? url.replace(/[()]/g, (c) => c === "(" ? "%28" : "%29") : undefined;
+  const longestFence = Math.max(0, ...(query.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = "`".repeat(Math.max(3, longestFence + 1));
+  let prompt = `${author} says${source ? ` from [${source}](${source})` : ""}:\n\n${fence}\n${query}\n${fence}`;
+  if (e.issueTitle || e.issueIdentifier || source) {
+    const title = clipped([e.issueIdentifier, e.issueTitle].filter(Boolean).join(" · ").replace(/\s+/g, " ").trim(), 120)
+      .replace(/[\\[\]]/g, "\\$&");
+    prompt += `\n\nIssue reference: [${title}]${source ? `(${source})` : ""}`;
+    prompt += "\n\nYou can read full issue and comments through official Linear MCP before acting.";
   }
   prompt = guidancePrompt({ ...e, prompt, guidance: delivered === version ? undefined : guidance });
   if (guidance?.length === 0 && delivered && delivered !== "[]")

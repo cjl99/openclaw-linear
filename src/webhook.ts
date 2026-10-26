@@ -50,6 +50,7 @@ export function normalize(
     throw Error("Invalid prompt");
   const request = stop ? "" : p.action === "created" ? initialRequest(prompt, s.comment?.body) : prompt;
   if (!stop && !request.trim()) throw Error("Invalid prompt");
+  const author = p.action === "prompted" ? p.agentActivity?.user?.name : s.creator?.name;
   return {
     id:
       p.action === "created"
@@ -61,6 +62,7 @@ export function normalize(
     sessionId: s.id,
     issueId: s.issue.id,
     prompt: request,
+    ...(typeof author === "string" && author.trim() ? { requestAuthor: author.trim() } : {}),
     action: stop ? "stop" : p.action,
     ...(Array.isArray(p.guidance) ? { guidance: p.guidance } : {}),
     ...(typeof p.agentActivity?.signal === "string"

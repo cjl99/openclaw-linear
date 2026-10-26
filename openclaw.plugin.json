@@ -40,6 +40,11 @@
         "maximum": 100,
         "default": 1
       },
+      "sessionInstructions": {
+        "type": "string",
+        "maxLength": 1000,
+        "description": "Instance-owned instructions appended after the current request and bounded context"
+      },
       "locale": {
         "type": "string",
         "enum": ["en", "zh-CN"],

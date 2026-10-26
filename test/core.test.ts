@@ -249,3 +249,13 @@ test("an empty extracted user request is rejected before queueing", () => {
     organizationId: "org", promptContext: "<issue></issue>\n<user-request> </user-request>",
     agentSession: { id: "s", issue: { id: "i" } } }, { organizationId: "org" } as any, "delivery", now)).toThrow("Invalid prompt");
 });
+
+test("message attribution uses the current activity author, not the original session creator", () => {
+  const now = Date.now();
+  const common = { type: "AgentSessionEvent", webhookTimestamp: now, organizationId: "org",
+    agentSession: { id: "s", issue: { id: "i" }, creator: { name: "Original creator" } } };
+  const first = normalize({ ...common, action: "created", promptContext: "First request" }, { organizationId: "org" } as any, "one", now);
+  expect(first?.requestAuthor).toBe("Original creator");
+  const followup = normalize({ ...common, action: "prompted", agentActivity: { id: "a", user: { name: "Current speaker" }, content: { type: "prompt", body: "Next request" } } }, { organizationId: "org" } as any, "two", now);
+  expect(followup?.requestAuthor).toBe("Current speaker");
+});

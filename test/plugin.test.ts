@@ -38,6 +38,7 @@ test("Gateway route rejects unsigned requests and dispatches signed session thro
   const api: any = {
     pluginConfig: {
       agentId: "agent",
+      sessionInstructions: "If blocked, notify the configured owner privately.",
       organizationId: "org",
       teamIds: ["team"],
       stateDir: join(dir, "state"),
@@ -122,8 +123,9 @@ test("Gateway route rejects unsigned requests and dispatches signed session thro
     expect(run).not.toHaveBeenCalled();
     expect(await send(true)).toBe(200);
     await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    expect(run.mock.calls[0][0].message.endsWith("\n\nPrompt: If blocked, notify the configured owner privately.")).toBe(true);
     const params = run.mock.calls[0][0] as any;
-    expect(params.message).toBe("test");
+    expect(params.message).toBe("Linear says:\n\n```\ntest\n```\n\nPrompt: If blocked, notify the configured owner privately.");
     expect(params.provider).toBeUndefined();
     expect(params.model).toBeUndefined();
     expect(params.deliver).toBe(false);
@@ -133,7 +135,7 @@ test("Gateway route rejects unsigned requests and dispatches signed session thro
     expect(run).toHaveBeenCalledOnce();
     expect(await send(true, true)).toBe(200);
     await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2));
-    expect(run.mock.calls[1][0].message).toBe("你读到什么了");
+    expect(run.mock.calls[1][0].message).toBe("Linear says:\n\n```\n你读到什么了\n```\n\nPrompt: If blocked, notify the configured owner privately.");
     expect(run.mock.calls[1][0].sessionKey).toBe(params.sessionKey);
     expect(JSON.stringify(content.mock.calls)).not.toContain("本轮上下文");
   } finally {
